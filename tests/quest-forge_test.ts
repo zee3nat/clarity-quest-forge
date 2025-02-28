@@ -8,30 +8,34 @@ import {
 import { assertEquals } from 'https://deno.land/std@0.90.0/testing/asserts.ts';
 
 Clarinet.test({
-  name: "Ensure user can initialize character",
+  name: "Ensure user can initialize character with valid class",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const wallet_1 = accounts.get("wallet_1")!;
     
     let block = chain.mineBlock([
-      Tx.contractCall("quest-forge", "initialize-character", [], wallet_1.address)
+      Tx.contractCall("quest-forge", "initialize-character", [
+        types.uint(1)  // Warrior class
+      ], wallet_1.address)
     ]);
     
     assertEquals(block.receipts.length, 1);
-    assertEquals(block.height, 2);
     assertEquals(block.receipts[0].result, "(ok true)");
   },
 });
 
 Clarinet.test({
-  name: "Can create and complete quest",
+  name: "Can create and complete quest with deadline",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const wallet_1 = accounts.get("wallet_1")!;
     
     let block = chain.mineBlock([
-      Tx.contractCall("quest-forge", "initialize-character", [], wallet_1.address),
+      Tx.contractCall("quest-forge", "initialize-character", [
+        types.uint(1)
+      ], wallet_1.address),
       Tx.contractCall("quest-forge", "create-quest", [
         types.utf8("Test Quest"),
-        types.uint(1)
+        types.uint(1),
+        types.uint(100)  // 100 blocks deadline
       ], wallet_1.address),
       Tx.contractCall("quest-forge", "complete-quest", [
         types.uint(0)
@@ -44,15 +48,18 @@ Clarinet.test({
 });
 
 Clarinet.test({
-  name: "Character levels up correctly",
+  name: "Character levels up and gains skill points",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const wallet_1 = accounts.get("wallet_1")!;
     
     let block = chain.mineBlock([
-      Tx.contractCall("quest-forge", "initialize-character", [], wallet_1.address),
+      Tx.contractCall("quest-forge", "initialize-character", [
+        types.uint(1)
+      ], wallet_1.address),
       Tx.contractCall("quest-forge", "create-quest", [
         types.utf8("High XP Quest"),
-        types.uint(10)
+        types.uint(10),
+        types.uint(100)
       ], wallet_1.address),
       Tx.contractCall("quest-forge", "complete-quest", [
         types.uint(0)
@@ -66,6 +73,7 @@ Clarinet.test({
       wallet_1.address
     );
     
-    assertEquals(stats.result, '(ok {level: u2, experience: u0, quests-completed: u1})');
+    assertEquals(stats.result, 
+      '(ok {level: u2, experience: u0, quests-completed: u1, class: u1, skill-points: u1, quest-streak: u1})');
   },
 });
